@@ -12,6 +12,13 @@ long_mode_start:
     ; 64 bits allow putting 8 bytes in one go!
     mov rax, STRING_OKAY
     mov [VGA_BUFFER_START], rax
+    
+    extern rust_main
+    call rust_main              ; Call Rust function now that we are in 64-bit long mode
+
+    ; 64 bits allow putting 8 bytes in one go!
+    mov rax, STRING_OKAY
+    mov [VGA_BUFFER_START+8], rax
     hlt
 
 ; reset segment registers other than CS to prevent issue in future
