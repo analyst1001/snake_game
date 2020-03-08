@@ -124,6 +124,31 @@ impl Writer {
         assert!(col < BUFFER_WIDTH);
         self.buffer.chars[row][col].write(*character);
     }
+
+    /// Write a string starting at given row and column in VGA buffer
+    pub fn write_string_at(&mut self, string: &str, row: usize, col: usize) {
+        let mut current_row = row;
+        let mut current_col = col;
+        for c in string.chars() {
+            match c {
+                '\n' => {
+                    current_row += 1;
+                    current_col = 0;
+                },
+                c => {
+                    if current_col >= BUFFER_WIDTH {
+                        current_col = 0;
+                        current_row += 1;
+                    }
+                    self.buffer.chars[current_row][current_col].write(ScreenChar {
+                        ascii_character: c as u8,
+                        color_code: self.color_code,
+                    });
+                    current_col += 1;
+                }
+            }
+        }
+    }
 }
 
 impl fmt::Write for Writer {

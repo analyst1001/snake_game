@@ -80,7 +80,7 @@ lazy_static! {
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Direction {
+enum Direction {
     Left,
     Right,
     Up,
@@ -88,21 +88,21 @@ pub enum Direction {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Pixel {
-    pub row: usize,
-    pub col: usize,
+struct Pixel {
+    row: usize,
+    col: usize,
 }
 
 pub struct Snake<'s> {
     /// Current co-ordinates of body of the snake
-    pub body: RingBuffer<'s, Pixel>,
+    body: RingBuffer<'s, Pixel>,
     /// Current direction the snake is moving in
-    pub direction: Direction,
+    direction: Direction,
 }
 
 impl<'s> Snake<'s> {
     /// Draw the complete snake on screen, assuming atleast length 3
-    pub fn draw_complete(&self, screen: &Mutex<Writer>) {
+    pub fn draw(&self, screen: &Mutex<Writer>) {
         // Draw head of the snake
         let head_pixel = self.body.peek_first();
         match self.direction {

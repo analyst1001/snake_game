@@ -16,6 +16,7 @@ all: $(game)
 
 clean:
 	@rm -r build
+	@cargo clean
 
 run: $(iso)
 	@qemu-system-$(arch) -cdrom $(iso)

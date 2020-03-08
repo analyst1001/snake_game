@@ -13,6 +13,8 @@ use core::panic::PanicInfo;
 mod vga_buffer;
 mod snake;
 mod ring_buffer;
+mod boundary;
+mod score;
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
@@ -35,35 +37,13 @@ pub extern fn rust_main() {
     let buffer_ptr = (0xb8000 + 1988) as *mut _;
     unsafe { *buffer_ptr = hello_colored };
     
-    use snake::{Snake, Pixel, Direction};
+    use snake::{SNAKE};
 
-    let arr: [Pixel; 10] = [
-        Pixel {col: 0, row: 0},
-        Pixel {col: 1, row: 0},
-        Pixel {col: 1, row: 1},
-        Pixel {col: 1, row: 2},
-        Pixel {col: 1, row: 3},
-        Pixel {col: 2, row: 3},
-        Pixel {col: 3, row: 3},
-        Pixel {col: 4, row: 3},
-        Pixel {col: 5, row: 3},
-        Pixel {col: 6, row: 3},
-    ];
+    let boundary = boundary::Boundary{};
+    let score = score::Score::new(65535);
 
-    let mut arr2: [Pixel; 20] = [Pixel{col:0, row:0}; 20];
-
-    use ring_buffer::RingBuffer;
-    let mut sb = RingBuffer::new(&mut arr2);
-
-    for p in arr.iter() {
-        sb.append(*p);
-    }
-
-    let mut s: Snake = Snake {
-        body: sb,
-        direction: Direction::Left,
-    };
-    s.draw_complete(&VGA_WRITER);
-
+    SNAKE.lock().draw(&VGA_WRITER);
+    boundary.draw(&VGA_WRITER);
+    score.draw(&VGA_WRITER);
 }
 
