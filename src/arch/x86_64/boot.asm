@@ -206,9 +206,9 @@ p2_table:
     resb 4096
 ; we don't need p1_table because we reserved 2MiB hugepages
 
-
+; TODO: Introduce guard page. Absence of it causes Page tables to be overwritten, causing "interesting" issues
 ; reserve space for stack
 stack_bottom:
-    resb 64
+    resb 4096 * 4
 ; stack grows from higher address to lower address
 stack_top:
