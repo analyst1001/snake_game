@@ -7,15 +7,16 @@ use crate::{print, println};
 
 const MAX_SNAKE_SIZE: usize = (BUFFER_HEIGHT - 3)*(BUFFER_WIDTH - 2);
 
+/// Statically allocated array representing Pixels for snakes body
 static mut ARRAY : [Pixel; MAX_SNAKE_SIZE] = [Pixel{row: 0,col: 0}; MAX_SNAKE_SIZE];
 
 lazy_static! {
-    //static ref array: [Pixel; MAX_SNAKE_SIZE] = [Pixel{row: 0,col: 0}; MAX_SNAKE_SIZE];
     pub static ref SNAKE: Mutex<Snake<'static>> = {
         let mut snake  = Snake {
             // Allow unsafe static mutable because we have single "thread" of execution currently
             body: RingBuffer::new(unsafe {&mut ARRAY}),
             direction: Direction::Left,
+            turn_direction: None,
         };
         snake.body.append(Pixel{row: BUFFER_HEIGHT/2, col:BUFFER_WIDTH/2});
         snake.body.append(Pixel{row: BUFFER_HEIGHT/2, col:BUFFER_WIDTH/2 + 1});
@@ -82,7 +83,7 @@ lazy_static! {
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Direction {
+pub enum Direction {
     Left,
     Right,
     Up,
@@ -100,6 +101,8 @@ pub struct Snake<'s> {
     body: RingBuffer<'s, Pixel>,
     /// Current direction the snake is moving in
     direction: Direction,
+    /// Direction to follow on next tick if user pressed any key after previous tick
+    turn_direction: Option<Direction>,
 }
 
 impl<'s> Snake<'s> {
@@ -177,9 +180,40 @@ impl<'s> Snake<'s> {
             }
         });
     }
+    
+    /// Process snake's movement per tick
+    pub fn tick(&mut self) {
+        if let Some(turn_direction) = self.turn_direction {
+            if turn_direction == self.direction {
+                // No change in direction
+                self.move_ahead();
+            }
+        }
+        
+        match self.turn_direction {
+            None => {
+                // No change in direction
+                self.move_ahead();
+            },
+            Some(Direction::Left) => {
+                self.turn_left();
+            },
+            Some(Direction::Right) => {
+                self.turn_right();
+            },
+            Some(Direction::Up) => {
+                self.turn_up();
+            },
+            Some(Direction::Down) => {
+                self.turn_down();
+            },
+        }
+        // Reset for next tick
+        self.turn_direction = None;
+    }
 
     /// Make the snake take one step forward in current direction
-    pub fn move_ahead(&mut self) {
+    fn move_ahead(&mut self) {
         let head_pixel = self.body.peek_first();
         let new_head_pixel = match self.direction {
             Direction::Left => {
@@ -212,22 +246,111 @@ impl<'s> Snake<'s> {
     }
     
     /// Make the snake turn to the upward direction on screen
-    pub fn turn_up(&mut self) {
-        println!("Turning up");
+    fn turn_up(&mut self) {
+        let head_pixel = self.body.peek_first();
+        let new_head_pixel = match self.direction {
+            Direction::Left | Direction::Right | Direction::Up => {
+                // Continue moving up, or turn the head to up
+                self.direction = Direction::Up;
+                Pixel {
+                    row: head_pixel.row - 1,
+                    col: head_pixel.col,
+                }
+            },
+            Direction::Down => {
+                // Continue moving down
+                Pixel {
+                    row: head_pixel.row + 1,
+                    col: head_pixel.col,
+                }
+            },
+        };
+        self.body.prepend(new_head_pixel);
+        self.body.pop_last();
     }
 
     /// Make the snake turn to the downward direction on screen
-    pub fn turn_down(&mut self) {
-        println!("Turning down");
+    fn turn_down(&mut self) {
+        let head_pixel = self.body.peek_first();
+        let new_head_pixel = match self.direction {
+            Direction::Left | Direction::Right | Direction::Down => {
+                // Continue moving down, or turn the head to down
+                self.direction = Direction::Down;
+                Pixel {
+                    row: head_pixel.row + 1,
+                    col: head_pixel.col,
+                }
+            },
+            Direction::Up => {
+                // Continue moving up
+                Pixel {
+                    row: head_pixel.row - 1,
+                    col: head_pixel.col,
+                }
+            },
+        };
+        self.body.prepend(new_head_pixel);
+        self.body.pop_last();
     }
 
     /// Make the snake turn to the left direction on screen
-    pub fn turn_left(&mut self) {
-        println!("Turning left");
+    fn turn_left(&mut self) {
+        let head_pixel = self.body.peek_first();
+        let new_head_pixel = match self.direction {
+            Direction::Left | Direction::Up | Direction::Down => {
+                // Continue moving left, or turn the head to left
+                self.direction = Direction::Left;
+                Pixel {
+                    row: head_pixel.row,
+                    col: head_pixel.col - 1,
+                }
+            },
+            Direction::Right => {
+                // Continue moving right
+                Pixel {
+                    row: head_pixel.row,
+                    col: head_pixel.col + 1,
+                }
+            },
+        };
+        self.body.prepend(new_head_pixel);
+        self.body.pop_last();
     }
 
     /// Make the snake turn to the right direction on screen
-    pub fn turn_right(&mut self) {
-        println!("Turning right");
+    fn turn_right(&mut self) {
+        let head_pixel = self.body.peek_first();
+        let new_head_pixel = match self.direction {
+            Direction::Right | Direction::Up | Direction::Down => {
+                // Continue moving right, or turn the head to right
+                self.direction = Direction::Right;
+                Pixel {
+                    row: head_pixel.row,
+                    col: head_pixel.col + 1,
+                }
+            },
+            Direction::Left => {
+                // Continue moving left
+                Pixel {
+                    row: head_pixel.row,
+                    col: head_pixel.col - 1,
+                }
+            },
+        };
+        self.body.prepend(new_head_pixel);
+        self.body.pop_last();
+    }
+
+    /// Set direction to turn upon next tick
+    pub fn set_turn_direction(&mut self, turn_direction: Direction) {
+        match self.turn_direction {
+            None => {
+                // First direction key press after previous tick
+                self.turn_direction = Some(turn_direction)
+            },
+            Some(_) => {
+                // Do nothing after first direction  change
+            },
+        }
     }
 }

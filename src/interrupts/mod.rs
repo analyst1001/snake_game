@@ -7,7 +7,7 @@ use pic8259_simple::ChainedPics;
 use vga_buffer::{VGA_WRITER};
 use spin;
 
-use crate::snake::{SNAKE};
+use crate::snake::{SNAKE, Direction};
 
 
 pub const PIC_1_OFFSET: u8 = 32;
@@ -171,7 +171,7 @@ extern "C" fn double_fault_handler(stack_frame: &ExceptionStackFrame, error_code
 
 extern "C" fn timer_interrupt_handler(_stack_frame: &ExceptionStackFrame) {
     {
-        SNAKE.lock().move_ahead();
+        SNAKE.lock().tick();
         SNAKE.lock().draw(&VGA_WRITER);
     }
     unsafe {
@@ -199,10 +199,10 @@ extern "C" fn keyboard_interrupt_handler(_stack_frame: &ExceptionStackFrame) {
                 DecodedKey::Unicode(character) => (),
                 DecodedKey::RawKey(key) => {
                     match key {
-                        KeyCode::ArrowUp => { SNAKE.lock().turn_up() },
-                        KeyCode::ArrowDown => { SNAKE.lock().turn_down() },
-                        KeyCode::ArrowLeft =>  { SNAKE.lock().turn_left() },
-                        KeyCode::ArrowRight => { SNAKE.lock().turn_right() },
+                        KeyCode::ArrowUp => { SNAKE.lock().set_turn_direction(Direction::Up) },
+                        KeyCode::ArrowDown => { SNAKE.lock().set_turn_direction(Direction::Down) },
+                        KeyCode::ArrowLeft =>  { SNAKE.lock().set_turn_direction(Direction::Left) },
+                        KeyCode::ArrowRight => { SNAKE.lock().set_turn_direction(Direction::Right) },
                         _ => (),
                     }
                 },
