@@ -171,8 +171,7 @@ extern "C" fn double_fault_handler(stack_frame: &ExceptionStackFrame, error_code
 
 extern "C" fn timer_interrupt_handler(_stack_frame: &ExceptionStackFrame) {
     {
-        SNAKE.lock().tick();
-        SNAKE.lock().draw(&VGA_WRITER);
+        SNAKE.lock().tick(&VGA_WRITER);
     }
     unsafe {
         PICS.lock().notify_end_of_interrupt(InterruptIndex::Timer.as_u8());

@@ -3,6 +3,7 @@ use lazy_static::lazy_static;
 use spin::Mutex;
 use x86_64::instructions::interrupts;
 use crate::vga_buffer::{BUFFER_HEIGHT, BUFFER_WIDTH, Writer, ScreenChar, Color, ColorCode};
+use crate::prng::{PRNG};
 use crate::{print, println};
 
 const MAX_SNAKE_SIZE: usize = (BUFFER_HEIGHT - 3)*(BUFFER_WIDTH - 2);
@@ -79,6 +80,14 @@ lazy_static! {
         ascii_character: 179,
         color_code: ColorCode::new(Color::White, Color::Black),
     };
+    static ref EMPTY_CHARACTER: ScreenChar = ScreenChar {
+        ascii_character: 32,
+        color_code: ColorCode::new(Color::Black, Color::Black),
+    };
+    static ref FOOD_CHARACTER: ScreenChar = ScreenChar {
+        ascii_character: 3,
+        color_code: ColorCode::new(Color::Red, Color::Black),
+    };
 }
 
 
@@ -106,6 +115,22 @@ pub struct Snake<'s> {
 }
 
 impl<'s> Snake<'s> {
+
+    /// Draw head character for the snake
+    fn draw_head(&self, screen: &Mutex<Writer>, head_pixel: &Pixel) {
+        match self.direction {
+            Direction::Left => screen.lock().write_character_at(&HEAD_LEFT_CHARACTER, head_pixel.row, head_pixel.col),
+            Direction::Right => screen.lock().write_character_at(&HEAD_RIGHT_CHARACTER, head_pixel.row, head_pixel.col),
+            Direction::Up => screen.lock().write_character_at(&HEAD_UP_CHARACTER, head_pixel.row, head_pixel.col),
+            Direction::Down => screen.lock().write_character_at(&HEAD_DOWN_CHARACTER, head_pixel.row, head_pixel.col),
+        };
+    }
+
+    /// Erase particular pixel from snake's body
+    fn erase_body_part(&self, screen: &Mutex<Writer>, pixel: &Pixel) {
+        screen.lock().write_character_at(&EMPTY_CHARACTER, pixel.row, pixel.col);
+    }
+
     /// Draw the complete snake on screen, assuming atleast length 3
     pub fn draw(&self, screen: &Mutex<Writer>) {
         screen.lock().clear_screen();
@@ -113,13 +138,8 @@ impl<'s> Snake<'s> {
         let head_pixel = self.body.peek_first();
         // Disable interrupts to avoid deadlock
         interrupts::without_interrupts(|| {
-            match self.direction {
-                Direction::Left => screen.lock().write_character_at(&HEAD_LEFT_CHARACTER, head_pixel.row, head_pixel.col),
-                Direction::Right => screen.lock().write_character_at(&HEAD_RIGHT_CHARACTER, head_pixel.row, head_pixel.col),
-                Direction::Up => screen.lock().write_character_at(&HEAD_UP_CHARACTER, head_pixel.row, head_pixel.col),
-                Direction::Down => screen.lock().write_character_at(&HEAD_DOWN_CHARACTER, head_pixel.row, head_pixel.col),
-            };
-
+            screen.lock().write_character_at(&FOOD_CHARACTER, 4, 4);
+            self.draw_head(screen, head_pixel);
             // Draw body of the snake. Write two characters per iteration for current and next index.
             // The next iteration will replace the next index character, if the next index does not represent a tail.
             // Other approach is to read the last two elements at the end. and then draw the tail
@@ -181,40 +201,58 @@ impl<'s> Snake<'s> {
         });
     }
     
-    /// Process snake's movement per tick
-    pub fn tick(&mut self) {
+    /// Process and draw snake's movement per tick
+    pub fn tick(&mut self, screen: &Mutex<Writer>) {
         if let Some(turn_direction) = self.turn_direction {
             if turn_direction == self.direction {
                 // No change in direction
-                self.move_ahead();
+                self.move_ahead(screen);
             }
         }
         
         match self.turn_direction {
             None => {
                 // No change in direction
-                self.move_ahead();
+                self.move_ahead(screen);
             },
             Some(Direction::Left) => {
-                self.turn_left();
+                self.turn_left(screen);
             },
             Some(Direction::Right) => {
-                self.turn_right();
+                self.turn_right(screen);
             },
             Some(Direction::Up) => {
-                self.turn_up();
+                self.turn_up(screen);
             },
             Some(Direction::Down) => {
-                self.turn_down();
+                self.turn_down(screen);
             },
         }
         // Reset for next tick
         self.turn_direction = None;
     }
 
+    /// Check if we collided with something, and return if we should drop the tail
+    fn check_collision(&self, head_pixel: &Pixel, screen: &Mutex<Writer>) -> bool {
+        let existing_character = screen.lock().read_character_at(head_pixel.row, head_pixel.col);
+        if existing_character.ascii_character == EMPTY_CHARACTER.ascii_character {
+            return true;
+        }
+        else if existing_character.ascii_character == FOOD_CHARACTER.ascii_character {
+            // We ate food. Grow!
+            let new_food_row = (PRNG.lock().next() as usize % (BUFFER_HEIGHT - 3)) + 1;
+            let new_food_col = (PRNG.lock().next() as usize % (BUFFER_WIDTH - 2) + 1);
+            screen.lock().write_character_at(&FOOD_CHARACTER, new_food_row, new_food_col);
+            return false;
+        }
+        else {
+            panic!("COLLISION. GAME OVER!");
+        }
+    }
+
     /// Make the snake take one step forward in current direction
-    fn move_ahead(&mut self) {
-        let head_pixel = self.body.peek_first();
+    fn move_ahead(&mut self, screen: &Mutex<Writer>) {
+        let head_pixel = *self.body.peek_first();
         let new_head_pixel = match self.direction {
             Direction::Left => {
                 Pixel {
@@ -241,13 +279,27 @@ impl<'s> Snake<'s> {
                 }
             },
         };
+        let drop_last = self.check_collision(&new_head_pixel, screen);
         self.body.prepend(new_head_pixel);
-        self.body.pop_last();
+        self.draw_head(screen, &new_head_pixel);
+        match self.direction {
+            Direction::Up | Direction::Down => {
+                screen.lock().write_character_at(&VERTICAL_CHARACTER, head_pixel.row, head_pixel.col);
+            },
+            Direction::Right | Direction::Left => {
+                screen.lock().write_character_at(&HORIZONTAL_CHARACTER, head_pixel.row, head_pixel.col);
+            },
+        }
+        if drop_last {
+            let drop_pixel = *self.body.pop_last();
+            self.erase_body_part(screen, &drop_pixel);
+        }
     }
     
     /// Make the snake turn to the upward direction on screen
-    fn turn_up(&mut self) {
-        let head_pixel = self.body.peek_first();
+    fn turn_up(&mut self, screen: &Mutex<Writer>) {
+        let head_pixel = *self.body.peek_first();
+        let old_direction = self.direction;
         let new_head_pixel = match self.direction {
             Direction::Left | Direction::Right | Direction::Up => {
                 // Continue moving up, or turn the head to up
@@ -265,13 +317,30 @@ impl<'s> Snake<'s> {
                 }
             },
         };
+        let drop_last = self.check_collision(&new_head_pixel, screen);
         self.body.prepend(new_head_pixel);
-        self.body.pop_last();
+        self.draw_head(screen, &new_head_pixel);
+        match old_direction {
+            Direction::Left => {
+                screen.lock().write_character_at(&RU_CHARACTER, head_pixel.row, head_pixel.col);
+            },
+            Direction::Right => {
+                screen.lock().write_character_at(&LU_CHARACTER, head_pixel.row, head_pixel.col);
+            },
+            Direction::Up | Direction::Down => {
+                screen.lock().write_character_at(&VERTICAL_CHARACTER, head_pixel.row, head_pixel.col);    
+            },
+        }
+        if drop_last {
+            let drop_pixel = *self.body.pop_last();
+            self.erase_body_part(screen, &drop_pixel);
+        }
     }
 
     /// Make the snake turn to the downward direction on screen
-    fn turn_down(&mut self) {
-        let head_pixel = self.body.peek_first();
+    fn turn_down(&mut self, screen: &Mutex<Writer>) {
+        let head_pixel = *self.body.peek_first();
+        let old_direction = self.direction;
         let new_head_pixel = match self.direction {
             Direction::Left | Direction::Right | Direction::Down => {
                 // Continue moving down, or turn the head to down
@@ -289,13 +358,30 @@ impl<'s> Snake<'s> {
                 }
             },
         };
+        let drop_last = self.check_collision(&new_head_pixel, screen);
         self.body.prepend(new_head_pixel);
-        self.body.pop_last();
+        self.draw_head(screen, &new_head_pixel);
+        match old_direction {
+            Direction::Left => {
+                screen.lock().write_character_at(&RD_CHARACTER, head_pixel.row, head_pixel.col);
+            },
+            Direction::Right => {
+                screen.lock().write_character_at(&LD_CHARACTER, head_pixel.row, head_pixel.col);
+            },
+            Direction::Up | Direction::Down => {
+                screen.lock().write_character_at(&VERTICAL_CHARACTER, head_pixel.row, head_pixel.col);    
+            },
+        }
+        if drop_last {
+            let drop_pixel = *self.body.pop_last();
+            self.erase_body_part(screen, &drop_pixel);
+        }
     }
 
     /// Make the snake turn to the left direction on screen
-    fn turn_left(&mut self) {
-        let head_pixel = self.body.peek_first();
+    fn turn_left(&mut self, screen: &Mutex<Writer>) {
+        let head_pixel = *self.body.peek_first();
+        let old_direction = self.direction;
         let new_head_pixel = match self.direction {
             Direction::Left | Direction::Up | Direction::Down => {
                 // Continue moving left, or turn the head to left
@@ -313,13 +399,30 @@ impl<'s> Snake<'s> {
                 }
             },
         };
+        let drop_last = self.check_collision(&new_head_pixel, screen);
         self.body.prepend(new_head_pixel);
-        self.body.pop_last();
+        self.draw_head(screen, &new_head_pixel);
+        match old_direction {
+            Direction::Up => {
+                screen.lock().write_character_at(&DL_CHARACTER, head_pixel.row, head_pixel.col);
+            },
+            Direction::Down => {
+                screen.lock().write_character_at(&UL_CHARACTER, head_pixel.row, head_pixel.col);
+            },
+            Direction::Left | Direction::Right => {
+                screen.lock().write_character_at(&HORIZONTAL_CHARACTER, head_pixel.row, head_pixel.col);    
+            },
+        }
+        if drop_last {
+            let drop_pixel = *self.body.pop_last();
+            self.erase_body_part(screen, &drop_pixel);
+        }
     }
 
     /// Make the snake turn to the right direction on screen
-    fn turn_right(&mut self) {
-        let head_pixel = self.body.peek_first();
+    fn turn_right(&mut self, screen: &Mutex<Writer>) {
+        let head_pixel = *self.body.peek_first();
+        let old_direction = self.direction;
         let new_head_pixel = match self.direction {
             Direction::Right | Direction::Up | Direction::Down => {
                 // Continue moving right, or turn the head to right
@@ -337,8 +440,24 @@ impl<'s> Snake<'s> {
                 }
             },
         };
+        let drop_last = self.check_collision(&new_head_pixel, screen);
         self.body.prepend(new_head_pixel);
-        self.body.pop_last();
+        self.draw_head(screen, &new_head_pixel);
+        match old_direction {
+            Direction::Up => {
+                screen.lock().write_character_at(&DR_CHARACTER, head_pixel.row, head_pixel.col);
+            },
+            Direction::Down => {
+                screen.lock().write_character_at(&UR_CHARACTER, head_pixel.row, head_pixel.col);
+            },
+            Direction::Left | Direction::Right => {
+                screen.lock().write_character_at(&HORIZONTAL_CHARACTER, head_pixel.row, head_pixel.col);    
+            },
+        }
+        if drop_last {
+            let drop_pixel = *self.body.pop_last();
+            self.erase_body_part(screen, &drop_pixel);
+        }
     }
 
     /// Set direction to turn upon next tick

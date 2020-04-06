@@ -39,3 +39,6 @@ gamebin:
 build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
 	@mkdir -p $(shell dirname $@)
 	@nasm -f elf64 $< -o $@
+
+clippylint:
+	@RUST_TARGET_PATH=$(shell pwd)/src/arch/$(arch) xargo clippy --target=$(arch)

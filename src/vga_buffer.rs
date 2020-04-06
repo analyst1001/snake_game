@@ -131,6 +131,12 @@ impl Writer {
         self.buffer.chars[row][col].write(*character);
     }
 
+    pub fn read_character_at(&self, row: usize, col: usize) -> ScreenChar {
+        assert!(row < BUFFER_HEIGHT);
+        assert!(col < BUFFER_WIDTH);
+        self.buffer.chars[row][col].read()
+    }
+
     /// Write a string starting at given row and column in VGA buffer
     pub fn write_string_at(&mut self, string: &str, row: usize, col: usize) {
         let mut current_row = row;
