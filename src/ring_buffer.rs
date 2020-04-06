@@ -1,6 +1,7 @@
 /* Generic RingBuffer implementation */
 
 use core::iter::Iterator;
+use crate::{print, println};
 
 /// Not thread safe yet
 #[derive(Debug)]
@@ -76,7 +77,8 @@ impl<'a, T> RingBuffer<'a, T> {
         assert!(!self.is_empty());
         assert!(i < self.buffer.len());
         let index = (self.first + i) % self.buffer.len();
-        assert!(index < self.last);
+        //println!("index {}, self.last {}",index, self.last);
+        //assert!(index < self.last);
         &self.buffer[index]
     }
 
@@ -119,9 +121,11 @@ impl<'a, T> Iterator for RingBufferTripletsIterator<'a, T> {
         if (self.current_index + 2) % self.ring_buffer.buffer.len() == self.ring_buffer.last {
             return None
         }
-        let (first_element, second_element, third_element) = (self.ring_buffer.peek_ith(self.current_index),
-                                                              self.ring_buffer.peek_ith(self.current_index + 1),
-                                                              self.ring_buffer.peek_ith(self.current_index + 2));
+        let current_index = self.current_index - self.ring_buffer.first;
+        //println!("current_index {}, first: {}", self.current_index, self.ring_buffer.first);
+        let (first_element, second_element, third_element) = (self.ring_buffer.peek_ith(current_index),
+                                                              self.ring_buffer.peek_ith(current_index + 1),
+                                                              self.ring_buffer.peek_ith(current_index + 2));
         self.current_index += 1;
         return Some((first_element, second_element, third_element));
     }

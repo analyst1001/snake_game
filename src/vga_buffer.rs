@@ -108,6 +108,12 @@ impl Writer {
         }
     }
 
+    pub fn clear_screen(&mut self) {
+        for row in 2..BUFFER_HEIGHT-1 {
+            self.clear_row(row);
+        }
+    }
+
     fn clear_row(&mut self, row: usize) {
         let blank_char = ScreenChar {
             ascii_character: b' ',

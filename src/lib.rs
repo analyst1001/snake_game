@@ -49,36 +49,20 @@ pub extern fn rust_main() {
 
     let buffer_ptr = (0xb8000 + 1988) as *mut _;
     unsafe { *buffer_ptr = hello_colored };
+    use snake::{SNAKE};
 
+    // Interrupts are not enabled until this point, therefore not need of disabling them to avoid deadlock
+    SNAKE.lock().draw(&VGA_WRITER);
+    
+    let boundary = boundary::Boundary{};
+    let score = score::Score::new(65535);
+
+    boundary.draw(&VGA_WRITER);
+    score.draw(&VGA_WRITER);
     interrupts::init();
 
-    fn stack_overflow() {
-        print!("F");
-        stack_overflow();
-    }
-//    stack_overflow();
 
-//    unsafe { software_interrupt!(3) };
-//     unsafe {*(0xdeadbeef as *mut u64) = 42};
-//    unsafe { asm!("ud2") };
-//    divide_by_zero();
-    println!("Did not crash!");
     hlt_loop();
-
-//    use snake::{SNAKE};
-
-//    let boundary = boundary::Boundary{};
-//    let score = score::Score::new(65535);
-
-//    SNAKE.lock().draw(&VGA_WRITER);
-//    boundary.draw(&VGA_WRITER);
-//    score.draw(&VGA_WRITER);
-}
-
-fn divide_by_zero() {
-    unsafe {
-        asm!("mov dx, 0; div dx":::"ax", "dx": "volatile", "intel")
-    }
 }
 
 pub fn hlt_loop() -> ! {

@@ -2,6 +2,7 @@
 
 use spin::Mutex;
 use lazy_static::lazy_static;
+use x86_64::instructions::interrupts;
 
 use crate::vga_buffer::{BUFFER_HEIGHT, BUFFER_WIDTH, ScreenChar, ColorCode, Color, Writer};
 
@@ -42,24 +43,27 @@ const LAST_COL: usize = BUFFER_WIDTH - 1;
 impl Boundary {
     /// Draw boundary on screen
     pub fn draw(&self, screen: &Mutex<Writer>) {
-        let mut writer = screen.lock();
-        // Draw top-left corner
-        writer.write_character_at(&TL_CORNER_CHARACTER, FIRST_ROW, FIRST_COL);
-        // Draw top-right corner
-        writer.write_character_at(&TR_CORNER_CHARACTER, FIRST_ROW, LAST_COL);
-        // Draw bottom-left corner
-        writer.write_character_at(&BL_CORNER_CHARACTER, LAST_ROW, FIRST_COL);
-        // Draw bottom-right corner
-        writer.write_character_at(&BR_CORNER_CHARACTER, LAST_ROW, LAST_COL);
-        // Draw first and last row
-        for i in (FIRST_COL+1)..LAST_COL {
-            writer.write_character_at(&HORIZONTAL_CHARACTER, FIRST_ROW, i);
-            writer.write_character_at(&HORIZONTAL_CHARACTER, LAST_ROW, i);
-        }
-        // Draw first and last columns
-        for i in (FIRST_ROW+1)..LAST_ROW {
-            writer.write_character_at(&VERTICAL_CHARACTER, i, FIRST_COL);
-            writer.write_character_at(&VERTICAL_CHARACTER, i, LAST_COL);
-        }
+        // Disable interrupts to avoid deadlock
+        interrupts::without_interrupts(|| {
+            let mut writer = screen.lock();
+            // Draw top-left corner
+            writer.write_character_at(&TL_CORNER_CHARACTER, FIRST_ROW, FIRST_COL);
+            // Draw top-right corner
+            writer.write_character_at(&TR_CORNER_CHARACTER, FIRST_ROW, LAST_COL);
+            // Draw bottom-left corner
+            writer.write_character_at(&BL_CORNER_CHARACTER, LAST_ROW, FIRST_COL);
+            // Draw bottom-right corner
+            writer.write_character_at(&BR_CORNER_CHARACTER, LAST_ROW, LAST_COL);
+            // Draw first and last row
+            for i in (FIRST_COL+1)..LAST_COL {
+                writer.write_character_at(&HORIZONTAL_CHARACTER, FIRST_ROW, i);
+                writer.write_character_at(&HORIZONTAL_CHARACTER, LAST_ROW, i);
+            }
+            // Draw first and last columns
+            for i in (FIRST_ROW+1)..LAST_ROW {
+                writer.write_character_at(&VERTICAL_CHARACTER, i, FIRST_COL);
+                writer.write_character_at(&VERTICAL_CHARACTER, i, LAST_COL);
+            }
+        });
     }
 }

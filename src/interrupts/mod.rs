@@ -4,7 +4,10 @@ mod gdt;
 use crate::{print, println};
 use lazy_static::lazy_static;
 use pic8259_simple::ChainedPics;
+use vga_buffer::{VGA_WRITER};
 use spin;
+
+use crate::snake::{SNAKE};
 
 
 pub const PIC_1_OFFSET: u8 = 32;
@@ -167,7 +170,10 @@ extern "C" fn double_fault_handler(stack_frame: &ExceptionStackFrame, error_code
 }
 
 extern "C" fn timer_interrupt_handler(_stack_frame: &ExceptionStackFrame) {
-    print!(".");
+    {
+        SNAKE.lock().move_ahead();
+        SNAKE.lock().draw(&VGA_WRITER);
+    }
     unsafe {
         PICS.lock().notify_end_of_interrupt(InterruptIndex::Timer.as_u8());
     }
@@ -177,7 +183,7 @@ extern "C" fn timer_interrupt_handler(_stack_frame: &ExceptionStackFrame) {
 extern "C" fn keyboard_interrupt_handler(_stack_frame: &ExceptionStackFrame) {
     use spin::Mutex;
     use x86_64::instructions::port::Port;
-    use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
+    use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1, KeyCode};
     // Okay to define here, since it will be initialized only once
     lazy_static! {
         static ref KEYBOARD: Mutex<Keyboard<layouts::Us104Key, ScancodeSet1>> = Mutex::new(Keyboard::new(layouts::Us104Key, ScancodeSet1, HandleControl::Ignore));
@@ -190,8 +196,16 @@ extern "C" fn keyboard_interrupt_handler(_stack_frame: &ExceptionStackFrame) {
     if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
         if let Some(key) = keyboard.process_keyevent(key_event) {
             match key {
-                DecodedKey::Unicode(character) => print!("{}", character),
-                DecodedKey::RawKey(key) => print!("{:?}", key),
+                DecodedKey::Unicode(character) => (),
+                DecodedKey::RawKey(key) => {
+                    match key {
+                        KeyCode::ArrowUp => { SNAKE.lock().turn_up() },
+                        KeyCode::ArrowDown => { SNAKE.lock().turn_down() },
+                        KeyCode::ArrowLeft =>  { SNAKE.lock().turn_left() },
+                        KeyCode::ArrowRight => { SNAKE.lock().turn_right() },
+                        _ => (),
+                    }
+                },
             }
         }
     }
