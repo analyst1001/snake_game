@@ -6,6 +6,7 @@ use crate::vga_buffer::{BUFFER_WIDTH, Writer, ColorCode, Color, ScreenChar};
 
 const SCORE_ROW: usize = 0;
 const SCORE_COL: usize = BUFFER_WIDTH - 12;
+const INCREMENT: u16 = 1;
 
 pub struct Score {
     // Under current VGA text buffer implementation, score will be < 2000
@@ -17,6 +18,10 @@ impl Score {
         Score {
             value: initial_score,
         }
+    }
+
+    pub fn increment(&mut self) {
+        self.value += INCREMENT;
     }
 
     pub fn draw(&self, screen: &Mutex<Writer>) {

@@ -9,7 +9,7 @@ const MINUTE_REGISTER: u8 = 0x02;
 const HOUR_REGISTER: u8 = 0x04;
 const DAY_REGISTER: u8 = 0x07;
 const MONTH_REGISTER: u8 = 0x08;
-const YEAR_REGISTER: u8 = 0x09;
+//const YEAR_REGISTER: u8 = 0x09;
 
 fn get_update_in_progress_flag(cmos_address_port: &mut Port<u8>, cmos_data_port: &mut Port<u8>) -> u8 {
     unsafe { cmos_address_port.write(STATUS_REGISTER_A) };

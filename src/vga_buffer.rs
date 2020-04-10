@@ -109,7 +109,7 @@ impl Writer {
     }
 
     pub fn clear_screen(&mut self) {
-        for row in 2..BUFFER_HEIGHT-1 {
+        for row in 0..BUFFER_HEIGHT {
             self.clear_row(row);
         }
     }

@@ -9,7 +9,7 @@ const TWO_POWER_32: u64 = 1<<32;
 lazy_static! {
     pub static ref PRNG: Mutex<PseudoRandomNumberGenerator> = {
         let seed = system_time::get_system_time_seed();
-        let mut prng = PseudoRandomNumberGenerator { seed: seed };
+        let mut prng = PseudoRandomNumberGenerator::new(seed);
         Mutex::new(prng)
     };
 }
