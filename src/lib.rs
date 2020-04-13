@@ -11,7 +11,6 @@ extern crate lazy_static;
 extern crate spin;
 extern crate uart_16550;
 extern crate volatile;
-#[macro_use]
 extern crate x86_64;
 #[macro_use]
 extern crate bitflags;

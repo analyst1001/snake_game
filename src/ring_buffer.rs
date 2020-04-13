@@ -4,7 +4,6 @@
 // TODO: Write unit tests for RingBuffer
 */
 
-use crate::{print, println};
 use core::iter::Iterator;
 
 /// Thread unsafe RingBuffer over an array
@@ -23,7 +22,7 @@ impl<'a, T> RingBuffer<'a, T> {
     /// Create a new ring buffer utilizing provided array as buffer space
     pub fn new(buffer: &'a mut [T]) -> Self {
         RingBuffer {
-            buffer: buffer,
+            buffer,
             first: 0,
             last: 0,
             full: false,
@@ -32,12 +31,12 @@ impl<'a, T> RingBuffer<'a, T> {
 
     /// Check if ring buffer is completely empty
     fn is_empty(&self) -> bool {
-        self.first == self.last && self.full == false
+        self.first == self.last && !self.full
     }
 
     /// Check if ring buffer is completely filled up
     fn is_full(&self) -> bool {
-        self.first == self.last && self.full == true
+        self.first == self.last && self.full
     }
 
     /// Put an element at the beginning of the buffer, logically shifting existing elements to the right in the process
@@ -134,6 +133,6 @@ impl<'a, T> Iterator for RingBufferTripletsIterator<'a, T> {
             self.ring_buffer.peek_ith(current_index + 2),
         );
         self.current_index += 1;
-        return Some((first_element, second_element, third_element));
+        Some((first_element, second_element, third_element))
     }
 }

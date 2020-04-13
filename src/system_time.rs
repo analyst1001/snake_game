@@ -50,7 +50,7 @@ pub fn get_system_time_seed() -> u64 {
     let mut day: u64 = 0;
     let mut month: u64 = 0;
     //let mut year: u8 = 0;
-    while (get_update_in_progress_flag(&mut cmos_address_port, &mut cmos_data_port) != 0) {
+    while get_update_in_progress_flag(&mut cmos_address_port, &mut cmos_data_port) != 0 {
         second =
             get_rtc_register(&mut cmos_address_port, &mut cmos_data_port, SECOND_REGISTER) as u64;
         minute =
@@ -66,7 +66,7 @@ pub fn get_system_time_seed() -> u64 {
         &mut cmos_data_port,
         STATUS_REGISTER_B,
     );
-    if ((register_b_status & 0x04) == 0) {
+    if (register_b_status & 0x04) == 0 {
         second = (second & 0x0F) + ((second / 16) * 10);
         minute = (minute & 0x0F) + ((minute / 16) * 10);
         hour = ((hour & 0x0F) + (((hour & 0x70) / 16) * 10)) | (hour & 0x80);
@@ -75,9 +75,9 @@ pub fn get_system_time_seed() -> u64 {
         //year = (year & 0x0F) + ((year / 16) * 10);
     }
 
-    if ((register_b_status & 0x02) == 0 && (hour & 0x80) != 0) {
+    if (register_b_status & 0x02) == 0 && (hour & 0x80) != 0 {
         hour = ((hour & 0x7F) + 12) % 24;
     }
     // Naive usage of 30 days month
-    return (second + (minute * 60) + (hour * 3600) + (day * 86400) + (month * 2592000));
+    second + (minute * 60) + (hour * 3600) + (day * 86400) + (month * 2_592_000)
 }

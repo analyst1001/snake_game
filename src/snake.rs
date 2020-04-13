@@ -7,7 +7,6 @@
 use crate::prng::PRNG;
 use crate::ring_buffer::RingBuffer;
 use crate::vga_buffer::{Color, ColorCode, ScreenChar, Writer, BUFFER_HEIGHT, BUFFER_WIDTH};
-use crate::{print, println};
 use lazy_static::lazy_static;
 use spin::Mutex;
 use x86_64::instructions::interrupts;
@@ -18,7 +17,7 @@ use score::Score;
 // Subtract 2 columns for boundaries
 const MAX_SNAKE_SIZE: usize = (BUFFER_HEIGHT - 3) * (BUFFER_WIDTH - 2);
 // Position for food when the game starts
-const FOOD_START_PIXEL: (usize, usize) = (03, 19);
+const FOOD_START_PIXEL: (usize, usize) = (3, 19);
 
 lazy_static! {
     /// Instance of Snake for playing the game
@@ -167,22 +166,22 @@ impl<'s> Snake<'s> {
     fn draw_head(&self, screen: &Mutex<Writer>, head_pixel: &Pixel) {
         match self.direction {
             Direction::Left => screen.lock().write_character_at(
-                &HEAD_LEFT_CHARACTER,
+                *HEAD_LEFT_CHARACTER,
                 head_pixel.row,
                 head_pixel.col,
             ),
             Direction::Right => screen.lock().write_character_at(
-                &HEAD_RIGHT_CHARACTER,
+                *HEAD_RIGHT_CHARACTER,
                 head_pixel.row,
                 head_pixel.col,
             ),
             Direction::Up => {
                 screen
                     .lock()
-                    .write_character_at(&HEAD_UP_CHARACTER, head_pixel.row, head_pixel.col)
+                    .write_character_at(*HEAD_UP_CHARACTER, head_pixel.row, head_pixel.col)
             }
             Direction::Down => screen.lock().write_character_at(
-                &HEAD_DOWN_CHARACTER,
+                *HEAD_DOWN_CHARACTER,
                 head_pixel.row,
                 head_pixel.col,
             ),
@@ -193,7 +192,7 @@ impl<'s> Snake<'s> {
     fn erase_body_part(&self, screen: &Mutex<Writer>, pixel: &Pixel) {
         screen
             .lock()
-            .write_character_at(&EMPTY_CHARACTER, pixel.row, pixel.col);
+            .write_character_at(*EMPTY_CHARACTER, pixel.row, pixel.col);
     }
 
     /// Draw the complete snake on screen, assuming length >= 3
@@ -202,7 +201,7 @@ impl<'s> Snake<'s> {
         // Disable interrupts to avoid deadlock
         interrupts::without_interrupts(|| {
             screen.lock().write_character_at(
-                &FOOD_CHARACTER,
+                *FOOD_CHARACTER,
                 FOOD_START_PIXEL.0,
                 FOOD_START_PIXEL.1,
             );
@@ -222,95 +221,95 @@ impl<'s> Snake<'s> {
                         // Left to Up
                         screen
                             .lock()
-                            .write_character_at(&LU_CHARACTER, current.row, current.col);
+                            .write_character_at(*LU_CHARACTER, current.row, current.col);
                         screen
                             .lock()
-                            .write_character_at(&VERTICAL_CHARACTER, next.row, next.col);
+                            .write_character_at(*VERTICAL_CHARACTER, next.row, next.col);
                     }
                     (1, 0, 0, 1) => {
                         // Left to Down
                         screen
                             .lock()
-                            .write_character_at(&LD_CHARACTER, current.row, current.col);
+                            .write_character_at(*LD_CHARACTER, current.row, current.col);
                         screen
                             .lock()
-                            .write_character_at(&VERTICAL_CHARACTER, next.row, next.col);
+                            .write_character_at(*VERTICAL_CHARACTER, next.row, next.col);
                     }
                     (-1, 0, 0, -1) => {
                         // Right to Up
                         screen
                             .lock()
-                            .write_character_at(&RU_CHARACTER, current.row, current.col);
+                            .write_character_at(*RU_CHARACTER, current.row, current.col);
                         screen
                             .lock()
-                            .write_character_at(&VERTICAL_CHARACTER, next.row, next.col);
+                            .write_character_at(*VERTICAL_CHARACTER, next.row, next.col);
                     }
                     (1, 0, 0, -1) => {
                         // Right to Down
                         screen
                             .lock()
-                            .write_character_at(&RD_CHARACTER, current.row, current.col);
+                            .write_character_at(*RD_CHARACTER, current.row, current.col);
                         screen
                             .lock()
-                            .write_character_at(&VERTICAL_CHARACTER, next.row, next.col);
+                            .write_character_at(*VERTICAL_CHARACTER, next.row, next.col);
                     }
                     (0, 1, -1, 0) => {
                         // Up to Left
                         screen
                             .lock()
-                            .write_character_at(&UL_CHARACTER, current.row, current.col);
+                            .write_character_at(*UL_CHARACTER, current.row, current.col);
                         screen
                             .lock()
-                            .write_character_at(&HORIZONTAL_CHARACTER, next.row, next.col);
+                            .write_character_at(*HORIZONTAL_CHARACTER, next.row, next.col);
                     }
                     (0, 1, 1, 0) => {
                         // Up to Right
                         screen
                             .lock()
-                            .write_character_at(&UR_CHARACTER, current.row, current.col);
+                            .write_character_at(*UR_CHARACTER, current.row, current.col);
                         screen
                             .lock()
-                            .write_character_at(&HORIZONTAL_CHARACTER, next.row, next.col);
+                            .write_character_at(*HORIZONTAL_CHARACTER, next.row, next.col);
                     }
                     (0, -1, -1, 0) => {
                         // Down to Left
                         screen
                             .lock()
-                            .write_character_at(&DL_CHARACTER, current.row, current.col);
+                            .write_character_at(*DL_CHARACTER, current.row, current.col);
                         screen
                             .lock()
-                            .write_character_at(&HORIZONTAL_CHARACTER, next.row, next.col);
+                            .write_character_at(*HORIZONTAL_CHARACTER, next.row, next.col);
                     }
                     (0, -1, 1, 0) => {
                         // Down to Right
                         screen
                             .lock()
-                            .write_character_at(&DR_CHARACTER, current.row, current.col);
+                            .write_character_at(*DR_CHARACTER, current.row, current.col);
                         screen
                             .lock()
-                            .write_character_at(&HORIZONTAL_CHARACTER, next.row, next.col);
+                            .write_character_at(*HORIZONTAL_CHARACTER, next.row, next.col);
                     }
                     (0, 0, 1, 1) | (0, 0, -1, -1) => {
                         // Left to Right or Right to Left
                         screen.lock().write_character_at(
-                            &HORIZONTAL_CHARACTER,
+                            *HORIZONTAL_CHARACTER,
                             current.row,
                             current.col,
                         );
                         screen
                             .lock()
-                            .write_character_at(&HORIZONTAL_CHARACTER, next.row, next.col);
+                            .write_character_at(*HORIZONTAL_CHARACTER, next.row, next.col);
                     }
                     (1, 1, 0, 0) | (-1, -1, 0, 0) => {
                         // Up to Down or Down to Up
                         screen.lock().write_character_at(
-                            &VERTICAL_CHARACTER,
+                            *VERTICAL_CHARACTER,
                             current.row,
                             current.col,
                         );
                         screen
                             .lock()
-                            .write_character_at(&VERTICAL_CHARACTER, next.row, next.col);
+                            .write_character_at(*VERTICAL_CHARACTER, next.row, next.col);
                     }
                     _ => panic!(
                         "Unexpected sequence of pixels: {:?} {:?} {:?}",
@@ -363,7 +362,7 @@ impl<'s> Snake<'s> {
             .lock()
             .read_character_at(head_pixel.row, head_pixel.col);
         if existing_character == *EMPTY_CHARACTER {
-            return true;
+            true
         } else if existing_character == *FOOD_CHARACTER {
             // We ate food. Increment score and Grow!
             match self.score_handler {
@@ -378,20 +377,19 @@ impl<'s> Snake<'s> {
                 }
             }
             let mut new_food_row = (PRNG.lock().next() as usize % (BUFFER_HEIGHT - 3)) + 2;
-            let mut new_food_col = (PRNG.lock().next() as usize % (BUFFER_WIDTH - 2) + 1);
+            let mut new_food_col = PRNG.lock().next() as usize % (BUFFER_WIDTH - 2) + 1;
             // Snake's body occupies the space. Find another position.
             // This logic is not optimal when snake becomes too large and occupies large
             // portion of the screen. To avoid that, we end the game early!
             // There are ways to avoid this, but we will defer it for later
-            while (screen.lock().read_character_at(new_food_row, new_food_col) != *EMPTY_CHARACTER)
-            {
+            while screen.lock().read_character_at(new_food_row, new_food_col) != *EMPTY_CHARACTER {
                 new_food_row = (PRNG.lock().next() as usize % (BUFFER_HEIGHT - 3)) + 2;
-                new_food_col = (PRNG.lock().next() as usize % (BUFFER_WIDTH - 2) + 1);
+                new_food_col = PRNG.lock().next() as usize % (BUFFER_WIDTH - 2) + 1;
             }
             screen
                 .lock()
-                .write_character_at(&FOOD_CHARACTER, new_food_row, new_food_col);
-            return false;
+                .write_character_at(*FOOD_CHARACTER, new_food_row, new_food_col);
+            false
         } else {
             panic!("COLLISION. GAME OVER!");
         }
@@ -424,14 +422,14 @@ impl<'s> Snake<'s> {
         match self.direction {
             Direction::Up | Direction::Down => {
                 screen.lock().write_character_at(
-                    &VERTICAL_CHARACTER,
+                    *VERTICAL_CHARACTER,
                     head_pixel.row,
                     head_pixel.col,
                 );
             }
             Direction::Right | Direction::Left => {
                 screen.lock().write_character_at(
-                    &HORIZONTAL_CHARACTER,
+                    *HORIZONTAL_CHARACTER,
                     head_pixel.row,
                     head_pixel.col,
                 );
@@ -471,16 +469,16 @@ impl<'s> Snake<'s> {
             Direction::Left => {
                 screen
                     .lock()
-                    .write_character_at(&RU_CHARACTER, head_pixel.row, head_pixel.col);
+                    .write_character_at(*RU_CHARACTER, head_pixel.row, head_pixel.col);
             }
             Direction::Right => {
                 screen
                     .lock()
-                    .write_character_at(&LU_CHARACTER, head_pixel.row, head_pixel.col);
+                    .write_character_at(*LU_CHARACTER, head_pixel.row, head_pixel.col);
             }
             Direction::Up | Direction::Down => {
                 screen.lock().write_character_at(
-                    &VERTICAL_CHARACTER,
+                    *VERTICAL_CHARACTER,
                     head_pixel.row,
                     head_pixel.col,
                 );
@@ -520,16 +518,16 @@ impl<'s> Snake<'s> {
             Direction::Left => {
                 screen
                     .lock()
-                    .write_character_at(&RD_CHARACTER, head_pixel.row, head_pixel.col);
+                    .write_character_at(*RD_CHARACTER, head_pixel.row, head_pixel.col);
             }
             Direction::Right => {
                 screen
                     .lock()
-                    .write_character_at(&LD_CHARACTER, head_pixel.row, head_pixel.col);
+                    .write_character_at(*LD_CHARACTER, head_pixel.row, head_pixel.col);
             }
             Direction::Up | Direction::Down => {
                 screen.lock().write_character_at(
-                    &VERTICAL_CHARACTER,
+                    *VERTICAL_CHARACTER,
                     head_pixel.row,
                     head_pixel.col,
                 );
@@ -569,16 +567,16 @@ impl<'s> Snake<'s> {
             Direction::Up => {
                 screen
                     .lock()
-                    .write_character_at(&DL_CHARACTER, head_pixel.row, head_pixel.col);
+                    .write_character_at(*DL_CHARACTER, head_pixel.row, head_pixel.col);
             }
             Direction::Down => {
                 screen
                     .lock()
-                    .write_character_at(&UL_CHARACTER, head_pixel.row, head_pixel.col);
+                    .write_character_at(*UL_CHARACTER, head_pixel.row, head_pixel.col);
             }
             Direction::Left | Direction::Right => {
                 screen.lock().write_character_at(
-                    &HORIZONTAL_CHARACTER,
+                    *HORIZONTAL_CHARACTER,
                     head_pixel.row,
                     head_pixel.col,
                 );
@@ -618,16 +616,16 @@ impl<'s> Snake<'s> {
             Direction::Up => {
                 screen
                     .lock()
-                    .write_character_at(&DR_CHARACTER, head_pixel.row, head_pixel.col);
+                    .write_character_at(*DR_CHARACTER, head_pixel.row, head_pixel.col);
             }
             Direction::Down => {
                 screen
                     .lock()
-                    .write_character_at(&UR_CHARACTER, head_pixel.row, head_pixel.col);
+                    .write_character_at(*UR_CHARACTER, head_pixel.row, head_pixel.col);
             }
             Direction::Left | Direction::Right => {
                 screen.lock().write_character_at(
-                    &HORIZONTAL_CHARACTER,
+                    *HORIZONTAL_CHARACTER,
                     head_pixel.row,
                     head_pixel.col,
                 );

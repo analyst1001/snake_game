@@ -20,7 +20,7 @@ impl Idt {
     /// Set interrupt handler function for a particular interrupt
     pub fn set_handler(&mut self, entry: u8, handler: HandlerFunc) -> &mut EntryOptions {
         self.0[entry as usize] = Entry::new(segmentation::cs(), handler);
-        &mut self.0[entry as usize].options
+        unsafe { &mut self.0[entry as usize].options }
     }
 
     /// Load the current interrupt descriptor table
@@ -54,7 +54,7 @@ impl Entry {
     fn new(gdt_selector: SegmentSelector, handler: HandlerFunc) -> Self {
         let pointer = handler as u64;
         Entry {
-            gdt_selector: gdt_selector,
+            gdt_selector,
             pointer_low: pointer as u16,
             pointer_middle: (pointer >> 16) as u16,
             pointer_high: (pointer >> 32) as u32,

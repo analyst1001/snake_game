@@ -95,7 +95,7 @@ impl Writer {
 
                 self.buffer.chars[row][col].write(ScreenChar {
                     ascii_character: byte,
-                    color_code: color_code,
+                    color_code,
                 });
 
                 self.column_position += 1;
@@ -144,10 +144,10 @@ impl Writer {
     }
 
     /// Write a character at given row and column in VGA buffer
-    pub fn write_character_at(&mut self, character: &ScreenChar, row: usize, col: usize) {
+    pub fn write_character_at(&mut self, character: ScreenChar, row: usize, col: usize) {
         assert!(row < BUFFER_HEIGHT);
         assert!(col < BUFFER_WIDTH);
-        self.buffer.chars[row][col].write(*character);
+        self.buffer.chars[row][col].write(character);
     }
 
     /// Read a characte from given row and column in VGA buffer

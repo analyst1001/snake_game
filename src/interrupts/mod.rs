@@ -7,7 +7,7 @@
 mod gdt;
 mod idt;
 
-use crate::{print, println};
+use crate::println;
 use lazy_static::lazy_static;
 use pic8259_simple::ChainedPics;
 use spin;
@@ -157,7 +157,7 @@ struct ExceptionStackFrame {
 
 bitflags! {
     struct PageFaultErrorCode: u64 {
-        const PROTECTION_VIOLATION = 1 << 0;
+        const PROTECTION_VIOLATION = 1;
         const CAUSED_BY_WRITE = 1 << 1;
         const USER_MODE = 1 << 2;
         const MALFORMED_TABLE = 1 << 3;
@@ -236,7 +236,7 @@ extern "C" fn keyboard_interrupt_handler(_stack_frame: &ExceptionStackFrame) {
     if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
         if let Some(key) = keyboard.process_keyevent(key_event) {
             match key {
-                DecodedKey::Unicode(character) => (),
+                DecodedKey::Unicode(_) => (),
                 DecodedKey::RawKey(key) => match key {
                     KeyCode::ArrowUp => SNAKE.lock().set_turn_direction(Direction::Up),
                     KeyCode::ArrowDown => SNAKE.lock().set_turn_direction(Direction::Down),

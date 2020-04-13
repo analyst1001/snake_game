@@ -44,14 +44,14 @@ impl Score {
             let mut value = self.value;
             let mut i = 0;
             while value > 0 {
-                let digit: u8 = (value % 10) as u8 + ('0' as u8);
+                let digit: u8 = (value % 10) as u8 + b'0';
                 let character = ScreenChar {
                     ascii_character: digit,
                     color_code: ColorCode::new(Color::White, Color::Black),
                 };
-                writer.write_character_at(&character, SCORE_ROW, BUFFER_WIDTH - i - 1);
+                writer.write_character_at(character, SCORE_ROW, BUFFER_WIDTH - i - 1);
                 i += 1;
-                value = value / 10;
+                value /= 10;
             }
         });
     }
