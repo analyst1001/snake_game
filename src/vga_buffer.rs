@@ -1,39 +1,43 @@
+/* Module for reading/writing character to screen */
 
 use core::fmt;
-use volatile::Volatile;
-use spin::Mutex;
 use lazy_static::lazy_static;
+use spin::Mutex;
+use volatile::Volatile;
 
 lazy_static! {
-    pub static ref VGA_WRITER: Mutex<Writer> = Mutex::new(Writer{
+    /// Static Writer instance to ues for reading/writing from VGA buffer
+    pub static ref VGA_WRITER: Mutex<Writer> = Mutex::new(Writer {
         column_position: 0,
         color_code: ColorCode::new(Color::LightGreen, Color::Black),
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
     });
 }
 
+/// Representation for allowed colors to display on screen
 #[allow(dead_code)]
 #[derive(Debug, Copy, Clone)]
 #[repr(u8)]
 pub enum Color {
-    Black      = 0,
-    Blue       = 1,
-    Green      = 2,
-    Cyan       = 3,
-    Red        = 4,
-    Magenta    = 5,
-    Brown      = 6,
-    LightGray  = 7,
-    DarkGray   = 8,
-    LightBlue  = 9,
+    Black = 0,
+    Blue = 1,
+    Green = 2,
+    Cyan = 3,
+    Red = 4,
+    Magenta = 5,
+    Brown = 6,
+    LightGray = 7,
+    DarkGray = 8,
+    LightBlue = 9,
     LightGreen = 10,
-    LightCyan  = 11,
-    LightRed   = 12,
-    Pink       = 13,
-    Yellow     = 14,
-    White      = 15,
+    LightCyan = 11,
+    LightRed = 12,
+    Pink = 13,
+    Yellow = 14,
+    White = 15,
 }
 
+/// Color byte for each character in VGA buffer
 #[derive(Debug, Clone, Copy)]
 #[repr(transparent)]
 pub struct ColorCode(u8);
@@ -44,6 +48,7 @@ impl ColorCode {
     }
 }
 
+/// Character representation for VGA buffer
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct ScreenChar {
@@ -51,14 +56,24 @@ pub struct ScreenChar {
     pub color_code: ColorCode,
 }
 
-pub const BUFFER_HEIGHT: usize = 25;
-pub const BUFFER_WIDTH: usize = 80; 
+// Use only ascii character for comparison of ScreenChars
+impl PartialEq for ScreenChar {
+    fn eq(&self, other: &Self) -> bool {
+        self.ascii_character == other.ascii_character
+    }
+}
 
+// VGA Buffer size constants
+pub const BUFFER_HEIGHT: usize = 25;
+pub const BUFFER_WIDTH: usize = 80;
+
+/// VGA buffer
 #[repr(transparent)]
 struct Buffer {
     chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT],
 }
 
+/// Reader/Writer for underlying VGA buffer
 pub struct Writer {
     column_position: usize,
     color_code: ColorCode,
@@ -66,7 +81,7 @@ pub struct Writer {
 }
 
 impl Writer {
-    /// Write in the last line of buffer, changing the line if necessary
+    /// Write a byte in the last line of buffer, changing the line if necessary
     pub fn write_byte(&mut self, byte: u8) {
         match byte {
             b'\n' => self.new_line(),
@@ -88,17 +103,19 @@ impl Writer {
         }
     }
 
+    /// Write a new line character, effectively scrolling up if required
     fn new_line(&mut self) {
         for row in 1..BUFFER_HEIGHT {
             for col in 0..BUFFER_WIDTH {
                 let character = self.buffer.chars[row][col].read();
-                self.buffer.chars[row-1][col].write(character);
+                self.buffer.chars[row - 1][col].write(character);
             }
         }
         self.clear_row(BUFFER_HEIGHT - 1);
         self.column_position = 0;
     }
 
+    /// Write a given string in the last line of VGA buffer
     pub fn write_string(&mut self, s: &str) {
         for byte in s.bytes() {
             match byte {
@@ -108,12 +125,14 @@ impl Writer {
         }
     }
 
+    /// Clear the complete VGA buffer
     pub fn clear_screen(&mut self) {
         for row in 0..BUFFER_HEIGHT {
             self.clear_row(row);
         }
     }
 
+    /// Clear particular row of VGA buffer
     fn clear_row(&mut self, row: usize) {
         let blank_char = ScreenChar {
             ascii_character: b' ',
@@ -131,6 +150,7 @@ impl Writer {
         self.buffer.chars[row][col].write(*character);
     }
 
+    /// Read a characte from given row and column in VGA buffer
     pub fn read_character_at(&self, row: usize, col: usize) -> ScreenChar {
         assert!(row < BUFFER_HEIGHT);
         assert!(col < BUFFER_WIDTH);
@@ -146,7 +166,7 @@ impl Writer {
                 '\n' => {
                     current_row += 1;
                     current_col = 0;
-                },
+                }
                 c => {
                     if current_col >= BUFFER_WIDTH {
                         current_col = 0;
@@ -170,11 +190,13 @@ impl fmt::Write for Writer {
     }
 }
 
+/// Print string at end of VGA buffer
 #[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => ($crate::vga_buffer::_print(format_args!($($arg)*)));
 }
 
+/// Print string at end of VGA buffer, and change line after it
 #[macro_export]
 macro_rules! println {
     () => ($crate::print!("\n"));

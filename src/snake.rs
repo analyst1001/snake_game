@@ -1,3 +1,9 @@
+/* Module for all snake related functionality for the game
+//
+// Assumption: Snake has minimum size of 3
+// TODO: Move all pixel manipulations as appropriate functions
+*/
+
 use crate::prng::PRNG;
 use crate::ring_buffer::RingBuffer;
 use crate::vga_buffer::{Color, ColorCode, ScreenChar, Writer, BUFFER_HEIGHT, BUFFER_WIDTH};
@@ -8,85 +14,123 @@ use x86_64::instructions::interrupts;
 
 use score::Score;
 
+// Subtract two rows for boundaries, 1 for score
+// Subtract 2 columns for boundaries
 const MAX_SNAKE_SIZE: usize = (BUFFER_HEIGHT - 3) * (BUFFER_WIDTH - 2);
-
-/// Statically allocated array representing Pixels for snakes body
-static mut ARRAY: [Pixel; MAX_SNAKE_SIZE] = [Pixel { row: 0, col: 0 }; MAX_SNAKE_SIZE];
+// Position for food when the game starts
+const FOOD_START_PIXEL: (usize, usize) = (03, 19);
 
 lazy_static! {
+    /// Instance of Snake for playing the game
     pub static ref SNAKE: Mutex<Snake<'static>> = {
+        // Statically allocated array representing Pixels for snakes body
+        static mut ARRAY: [Pixel; MAX_SNAKE_SIZE] = [Pixel { row: 0, col: 0 }; MAX_SNAKE_SIZE];
         let mut snake  = Snake {
             // Allow unsafe static mutable because we have single "thread" of execution currently
             body: RingBuffer::new(unsafe {&mut ARRAY}),
+            // Snake facing left side
             direction: Direction::Left,
             turn_direction: None,
             score_handler: None,
         };
+        // Snake has default body on size 3
         snake.body.append(Pixel{row: BUFFER_HEIGHT/2, col:BUFFER_WIDTH/2});
         snake.body.append(Pixel{row: BUFFER_HEIGHT/2, col:BUFFER_WIDTH/2 + 1});
         snake.body.append(Pixel{row: BUFFER_HEIGHT/2, col:BUFFER_WIDTH/2 + 2});
         Mutex::new(snake)
     };
+
+    /// Character to represent head of snake when moving up
     static ref HEAD_UP_CHARACTER: ScreenChar = ScreenChar {
         ascii_character: 30,
         color_code: ColorCode::new(Color::White, Color::Black),
     };
+
+    /// Character to represent head of snake when moving left
     static ref HEAD_LEFT_CHARACTER: ScreenChar = ScreenChar {
         ascii_character: 17,
         color_code: ColorCode::new(Color::White, Color::Black),
     };
+
+    /// Character to represent head of snake when moving right
     static ref HEAD_RIGHT_CHARACTER: ScreenChar = ScreenChar {
         ascii_character: 16,
         color_code: ColorCode::new(Color::White, Color::Black),
     };
+
+    /// Character to represent head of snake when moving down
     static ref HEAD_DOWN_CHARACTER: ScreenChar = ScreenChar {
         ascii_character: 31,
         color_code: ColorCode::new(Color::White, Color::Black),
     };
+
+    /// Character to represent snake turning up while moving right
     static ref LU_CHARACTER: ScreenChar = ScreenChar {
         ascii_character: 217,
         color_code: ColorCode::new(Color::White, Color::Black),
     };
+
+    /// Character to represent snake turning down while moving right
     static ref LD_CHARACTER: ScreenChar = ScreenChar {
         ascii_character: 191,
         color_code: ColorCode::new(Color::White, Color::Black),
     };
+
+    /// Character to represent snake turning up while moving left
     static ref RU_CHARACTER: ScreenChar = ScreenChar {
         ascii_character: 192,
         color_code: ColorCode::new(Color::White, Color::Black),
     };
+
+    /// Character to represent snake turning down while moving left
     static ref RD_CHARACTER: ScreenChar =  ScreenChar {
         ascii_character: 218,
         color_code: ColorCode::new(Color::White, Color::Black),
     };
+
+    /// Character to represent snake turning left while moving down
     static ref UL_CHARACTER: ScreenChar = ScreenChar {
         ascii_character: 217,
         color_code: ColorCode::new(Color::White, Color::Black),
     };
+
+    /// Character to represent snake turning right while moving down
     static ref UR_CHARACTER: ScreenChar = ScreenChar {
         ascii_character: 192,
         color_code: ColorCode::new(Color::White, Color::Black),
     };
+
+    /// Character to represent snake turning left while moving up
     static ref DL_CHARACTER: ScreenChar = ScreenChar {
         ascii_character: 191,
         color_code: ColorCode::new(Color::White, Color::Black),
     };
+
+    /// Character to represent snake turning right while moving up
     static ref DR_CHARACTER: ScreenChar = ScreenChar {
         ascii_character: 218,
         color_code: ColorCode::new(Color::White, Color::Black),
     };
+
+    /// Character to represent horizonal parts of snake's body
     static ref HORIZONTAL_CHARACTER: ScreenChar = ScreenChar {
         ascii_character: 196,
         color_code: ColorCode::new(Color::White, Color::Black),
     };
+
+    /// Character to represent vertical parts of snake's body
     static ref VERTICAL_CHARACTER: ScreenChar = ScreenChar {
         ascii_character: 179,
         color_code: ColorCode::new(Color::White, Color::Black),
     };
+
+    /// Character to represent empty space where snake can move freely
     static ref EMPTY_CHARACTER: ScreenChar = ScreenChar {
         ascii_character: 32,
         color_code: ColorCode::new(Color::Black, Color::Black),
     };
+
+    /// Character to represent food eaten by snake for incrementing score
     static ref FOOD_CHARACTER: ScreenChar = ScreenChar {
         ascii_character: 3,
         color_code: ColorCode::new(Color::Red, Color::Black),
@@ -152,13 +196,17 @@ impl<'s> Snake<'s> {
             .write_character_at(&EMPTY_CHARACTER, pixel.row, pixel.col);
     }
 
-    /// Draw the complete snake on screen, assuming atleast length 3
+    /// Draw the complete snake on screen, assuming length >= 3
     pub fn draw(&self, screen: &Mutex<Writer>) {
-        // Draw head of the snake
         let head_pixel = self.body.peek_first();
         // Disable interrupts to avoid deadlock
         interrupts::without_interrupts(|| {
-            screen.lock().write_character_at(&FOOD_CHARACTER, 3, 19);
+            screen.lock().write_character_at(
+                &FOOD_CHARACTER,
+                FOOD_START_PIXEL.0,
+                FOOD_START_PIXEL.1,
+            );
+            // Draw head of the snake
             self.draw_head(screen, head_pixel);
             // Draw body of the snake. Write two characters per iteration for current and next index.
             // The next iteration will replace the next index character, if the next index does not represent a tail.
@@ -314,19 +362,32 @@ impl<'s> Snake<'s> {
         let existing_character = screen
             .lock()
             .read_character_at(head_pixel.row, head_pixel.col);
-        if existing_character.ascii_character == EMPTY_CHARACTER.ascii_character {
+        if existing_character == *EMPTY_CHARACTER {
             return true;
-        } else if existing_character.ascii_character == FOOD_CHARACTER.ascii_character {
+        } else if existing_character == *FOOD_CHARACTER {
             // We ate food. Increment score and Grow!
             match self.score_handler {
                 None => panic!("Score object not set!"),
                 Some(ref mut score_handler) => {
                     score_handler.increment();
+                    // Early exit to avoid issue with food placement later
+                    if score_handler.get_score() as usize >= (MAX_SNAKE_SIZE / 2) {
+                        panic!("YOU WIN! GAME OVER!");
+                    }
                     score_handler.draw(screen);
-                }   
+                }
             }
-            let new_food_row = (PRNG.lock().next() as usize % (BUFFER_HEIGHT - 3)) + 1;
-            let new_food_col = (PRNG.lock().next() as usize % (BUFFER_WIDTH - 2) + 1);
+            let mut new_food_row = (PRNG.lock().next() as usize % (BUFFER_HEIGHT - 3)) + 2;
+            let mut new_food_col = (PRNG.lock().next() as usize % (BUFFER_WIDTH - 2) + 1);
+            // Snake's body occupies the space. Find another position.
+            // This logic is not optimal when snake becomes too large and occupies large
+            // portion of the screen. To avoid that, we end the game early!
+            // There are ways to avoid this, but we will defer it for later
+            while (screen.lock().read_character_at(new_food_row, new_food_col) != *EMPTY_CHARACTER)
+            {
+                new_food_row = (PRNG.lock().next() as usize % (BUFFER_HEIGHT - 3)) + 2;
+                new_food_col = (PRNG.lock().next() as usize % (BUFFER_WIDTH - 2) + 1);
+            }
             screen
                 .lock()
                 .write_character_at(&FOOD_CHARACTER, new_food_row, new_food_col);

@@ -1,19 +1,28 @@
-mod idt;
+/* Root for interrupts module.
+/
+/  Sets handlers for interrupts, and load IDT to enable interrupt
+/  handling
+*/
+
 mod gdt;
+mod idt;
 
 use crate::{print, println};
 use lazy_static::lazy_static;
 use pic8259_simple::ChainedPics;
-use vga_buffer::{VGA_WRITER};
 use spin;
+use vga_buffer::VGA_WRITER;
 
-use crate::snake::{SNAKE, Direction};
+use crate::snake::{Direction, SNAKE};
 
-
+// New offset for interrupts from PIC1 of chained PICs
 pub const PIC_1_OFFSET: u8 = 32;
+// New offset for interrupts from PIC2 of chained PICs
 pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
 
-pub static PICS: spin::Mutex<ChainedPics> = spin::Mutex::new(unsafe { ChainedPics::new(PIC_1_OFFSET, PIC_2_OFFSET) });
+// Chained PIC structure to handle Intel 8259 PIC
+pub static PICS: spin::Mutex<ChainedPics> =
+    spin::Mutex::new(unsafe { ChainedPics::new(PIC_1_OFFSET, PIC_2_OFFSET) });
 
 // Save caller saved registers
 // Although "x86-interrupt" would be more efficient, going with naive approach for now
@@ -32,6 +41,7 @@ macro_rules! save_scratch_registers {
     }
 }
 
+// Restore caller saved registers
 macro_rules! restore_scratch_registers {
     () => {
         asm!("pop r11
@@ -47,6 +57,7 @@ macro_rules! restore_scratch_registers {
     }
 }
 
+/// Macro expansion for exception/interrupt handlers without error code parameter
 macro_rules! handler {
     ($name: ident) => {{
         #[naked]
@@ -68,6 +79,7 @@ macro_rules! handler {
     }}
 }
 
+/// Macro expansion for exception/interrup handlers with error code parameter
 macro_rules! handler_with_error_code {
     ($name: ident) => {{
         #[naked]
@@ -111,19 +123,28 @@ impl InterruptIndex {
 }
 
 lazy_static! {
+    /// Interrupt Descriptor Table with entries for exceptions/interrupts we handle
     static ref IDT: idt::Idt = {
         let mut idt = idt::Idt::new();
         idt.set_handler(0, handler!(divide_by_zero_handler));
         idt.set_handler(3, handler!(breakpoint_handler));
         idt.set_handler(6, handler!(invalid_opcode_handler));
-        idt.set_handler(8, handler_with_error_code!(double_fault_handler)).set_stack_index(gdt::DOUBLE_FAULT_IST_INDEX + 1);
+        idt.set_handler(8, handler_with_error_code!(double_fault_handler))
+            .set_stack_index(gdt::DOUBLE_FAULT_IST_INDEX + 1);
         idt.set_handler(14, handler_with_error_code!(page_fault_handler));
-        idt.set_handler(InterruptIndex::Timer.as_u8(), handler!(timer_interrupt_handler));
-        idt.set_handler(InterruptIndex::Keyboard.as_u8(), handler!(keyboard_interrupt_handler));
+        idt.set_handler(
+            InterruptIndex::Timer.as_u8(),
+            handler!(timer_interrupt_handler),
+        );
+        idt.set_handler(
+            InterruptIndex::Keyboard.as_u8(),
+            handler!(keyboard_interrupt_handler),
+        );
         idt
     };
 }
 
+/// Exception stack frame provided as input to exception/interrupt handler
 #[derive(Debug)]
 #[repr(C)]
 struct ExceptionStackFrame {
@@ -144,48 +165,68 @@ bitflags! {
     }
 }
 
+/// Handler for division by zero anytime during execution
 extern "C" fn divide_by_zero_handler(stack_frame: &ExceptionStackFrame) {
-    println!("EXCEPTION: DIVIDE_BY_ZERO {:#?}", stack_frame);
+    panic!("EXCEPTION: DIVIDE_BY_ZERO {:#?}", stack_frame);
 }
 
+/// Handler when execution reaches an invalid opcode during execution
 extern "C" fn invalid_opcode_handler(stack_frame: &ExceptionStackFrame) {
-    println!("EXCEPTION: INVALID OPCODE at {:#x}\n{:#?}", stack_frame.instruction_pointer, stack_frame);
+    println!(
+        "EXCEPTION: INVALID OPCODE at {:#x}\n{:#?}",
+        stack_frame.instruction_pointer, stack_frame
+    );
 }
 
+/// Handle page faults during execution
 extern "C" fn page_fault_handler(stack_frame: &ExceptionStackFrame, error_code: u64) {
     use x86_64::registers::control;
-    println!("\nEXCEPTION: PAGE FAULT while accessing {:#x}\
+    panic!(
+        "\nEXCEPTION: PAGE FAULT while accessing {:#x}\
               \nerror code {:?}\n{:#?}",
-              unsafe { control::Cr2::read().as_u64() },
-              PageFaultErrorCode::from_bits(error_code).unwrap(),
-              stack_frame);
+        control::Cr2::read().as_u64(),
+        PageFaultErrorCode::from_bits(error_code).unwrap(),
+        stack_frame
+    );
 }
 
+/// Handle breakpoints during execution
 extern "C" fn breakpoint_handler(stack_frame: &ExceptionStackFrame) {
-   println!("EXCEPTION: BREAKPOINT at {:#x}\n{:#?}", stack_frame.instruction_pointer, stack_frame);
+    println!(
+        "EXCEPTION: BREAKPOINT at {:#x}\n{:#?}",
+        stack_frame.instruction_pointer, stack_frame
+    );
 }
 
+/// Handle all double fault exceptions during execution
 extern "C" fn double_fault_handler(stack_frame: &ExceptionStackFrame, error_code: u64) {
-    panic!("EXCEPTION: DOUBLE FAULT\n{:#?}. Error code: {:#x}", stack_frame, error_code);
+    panic!(
+        "EXCEPTION: DOUBLE FAULT\n{:#?}. Error code: {:#x}",
+        stack_frame, error_code
+    );
 }
 
+/// Handle Timer interrupts from Intel 8259 PIC
 extern "C" fn timer_interrupt_handler(_stack_frame: &ExceptionStackFrame) {
     {
         SNAKE.lock().tick(&VGA_WRITER);
     }
     unsafe {
-        PICS.lock().notify_end_of_interrupt(InterruptIndex::Timer.as_u8());
+        PICS.lock()
+            .notify_end_of_interrupt(InterruptIndex::Timer.as_u8());
     }
 }
 
-
+/// Handle Keyboard interrupts from Intel 8259 PIC when user presses a key
 extern "C" fn keyboard_interrupt_handler(_stack_frame: &ExceptionStackFrame) {
+    use pc_keyboard::{layouts, DecodedKey, HandleControl, KeyCode, Keyboard, ScancodeSet1};
     use spin::Mutex;
     use x86_64::instructions::port::Port;
-    use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1, KeyCode};
     // Okay to define here, since it will be initialized only once
     lazy_static! {
-        static ref KEYBOARD: Mutex<Keyboard<layouts::Us104Key, ScancodeSet1>> = Mutex::new(Keyboard::new(layouts::Us104Key, ScancodeSet1, HandleControl::Ignore));
+        static ref KEYBOARD: Mutex<Keyboard<layouts::Us104Key, ScancodeSet1>> = Mutex::new(
+            Keyboard::new(layouts::Us104Key, ScancodeSet1, HandleControl::Ignore)
+        );
     }
     let mut keyboard = KEYBOARD.lock();
     let mut port = Port::new(0x60);
@@ -196,24 +237,24 @@ extern "C" fn keyboard_interrupt_handler(_stack_frame: &ExceptionStackFrame) {
         if let Some(key) = keyboard.process_keyevent(key_event) {
             match key {
                 DecodedKey::Unicode(character) => (),
-                DecodedKey::RawKey(key) => {
-                    match key {
-                        KeyCode::ArrowUp => { SNAKE.lock().set_turn_direction(Direction::Up) },
-                        KeyCode::ArrowDown => { SNAKE.lock().set_turn_direction(Direction::Down) },
-                        KeyCode::ArrowLeft =>  { SNAKE.lock().set_turn_direction(Direction::Left) },
-                        KeyCode::ArrowRight => { SNAKE.lock().set_turn_direction(Direction::Right) },
-                        _ => (),
-                    }
+                DecodedKey::RawKey(key) => match key {
+                    KeyCode::ArrowUp => SNAKE.lock().set_turn_direction(Direction::Up),
+                    KeyCode::ArrowDown => SNAKE.lock().set_turn_direction(Direction::Down),
+                    KeyCode::ArrowLeft => SNAKE.lock().set_turn_direction(Direction::Left),
+                    KeyCode::ArrowRight => SNAKE.lock().set_turn_direction(Direction::Right),
+                    _ => (),
                 },
             }
         }
     }
 
     unsafe {
-        PICS.lock().notify_end_of_interrupt(InterruptIndex::Keyboard.as_u8());
+        PICS.lock()
+            .notify_end_of_interrupt(InterruptIndex::Keyboard.as_u8());
     }
 }
 
+/// Initialize GDT, and load IDT. Also enable interrupt handling
 pub fn init() {
     gdt::init();
     IDT.load();

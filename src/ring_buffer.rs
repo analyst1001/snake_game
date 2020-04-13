@@ -1,13 +1,17 @@
-/* Generic RingBuffer implementation */
+/* Generic RingBuffer implementation
+//
+// Not tested yet, may contain bugs
+// TODO: Write unit tests for RingBuffer
+*/
 
-use core::iter::Iterator;
 use crate::{print, println};
+use core::iter::Iterator;
 
-/// Not thread safe yet
+/// Thread unsafe RingBuffer over an array
 #[derive(Debug)]
 pub struct RingBuffer<'a, T> {
     /// Statically allocated buffer, since we don't have dynamic memory allocation yet :(
-    buffer: &'a mut[T],
+    buffer: &'a mut [T],
     /// Invariant: The valid elements in buffer are in range [first, last)
     first: usize,
     last: usize,
@@ -17,7 +21,7 @@ pub struct RingBuffer<'a, T> {
 
 impl<'a, T> RingBuffer<'a, T> {
     /// Create a new ring buffer utilizing provided array as buffer space
-    pub fn new(buffer: &'a mut[T]) -> Self {
+    pub fn new(buffer: &'a mut [T]) -> Self {
         RingBuffer {
             buffer: buffer,
             first: 0,
@@ -44,7 +48,7 @@ impl<'a, T> RingBuffer<'a, T> {
         self.buffer[new_first_pos] = element;
         self.first = new_first_pos;
         if new_first_pos == self.last {
-            self.full = true; 
+            self.full = true;
         }
     }
 
@@ -101,6 +105,7 @@ impl<'a, T> RingBuffer<'a, T> {
     }
 
     /// Return an iterator over triplets of values inside the ring buffer
+    // Assumes minimum size of 3
     pub fn triple_iter<'b>(&'b self) -> RingBufferTripletsIterator<'b, T> {
         RingBufferTripletsIterator {
             ring_buffer: self,
@@ -119,13 +124,15 @@ impl<'a, T> Iterator for RingBufferTripletsIterator<'a, T> {
     type Item = (&'a T, &'a T, &'a T);
     fn next(&mut self) -> Option<Self::Item> {
         if (self.current_index + 2) % self.ring_buffer.buffer.len() == self.ring_buffer.last {
-            return None
+            return None;
         }
         let current_index = self.current_index - self.ring_buffer.first;
         //println!("current_index {}, first: {}", self.current_index, self.ring_buffer.first);
-        let (first_element, second_element, third_element) = (self.ring_buffer.peek_ith(current_index),
-                                                              self.ring_buffer.peek_ith(current_index + 1),
-                                                              self.ring_buffer.peek_ith(current_index + 2));
+        let (first_element, second_element, third_element) = (
+            self.ring_buffer.peek_ith(current_index),
+            self.ring_buffer.peek_ith(current_index + 1),
+            self.ring_buffer.peek_ith(current_index + 2),
+        );
         self.current_index += 1;
         return Some((first_element, second_element, third_element));
     }

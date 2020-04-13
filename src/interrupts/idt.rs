@@ -1,12 +1,15 @@
+/* Interrupt descriptor table definition */
+
 use x86_64::instructions::segmentation;
 use x86_64::structures::gdt::SegmentSelector;
 use x86_64::PrivilegeLevel;
 
 use bit_field::BitField;
 
+/// Interrupt  handler functions type
 pub type HandlerFunc = extern "C" fn() -> !;
 
-// Interrupt descriptor table holding array of 48 entries
+/// Interrupt descriptor table holding array of 48 entries
 pub struct Idt([Entry; 48]);
 
 impl Idt {
@@ -14,15 +17,17 @@ impl Idt {
         Idt([Entry::missing(); 48])
     }
 
+    /// Set interrupt handler function for a particular interrupt
     pub fn set_handler(&mut self, entry: u8, handler: HandlerFunc) -> &mut EntryOptions {
         self.0[entry as usize] = Entry::new(segmentation::cs(), handler);
         &mut self.0[entry as usize].options
     }
 
+    /// Load the current interrupt descriptor table
     pub fn load(&self) {
-        use x86_64::structures::DescriptorTablePointer;
-        use x86_64::instructions::tables::{lidt};
         use core::mem::size_of;
+        use x86_64::instructions::tables::lidt;
+        use x86_64::structures::DescriptorTablePointer;
 
         let ptr = DescriptorTablePointer {
             base: self as *const _ as u64,
@@ -33,6 +38,7 @@ impl Idt {
     }
 }
 
+/// Interrupt descriptor table entry
 #[derive(Debug, Clone, Copy)]
 #[repr(C, packed)]
 pub struct Entry {
@@ -57,6 +63,7 @@ impl Entry {
         }
     }
 
+    /// Uninitialized IDT entry
     fn missing() -> Self {
         Entry {
             gdt_selector: SegmentSelector::new(0, PrivilegeLevel::Ring0),
@@ -73,7 +80,7 @@ impl Entry {
 pub struct EntryOptions(u16);
 
 impl EntryOptions {
-
+    /// Minimal options for valid IDT entry
     pub fn minimal() -> Self {
         let mut options = 0;
         options.set_bits(9..12, 0b111);
@@ -86,21 +93,25 @@ impl EntryOptions {
         options
     }
 
+    /// Set present bit for IDT entry
     pub fn set_present(&mut self, present: bool) -> &mut Self {
         self.0.set_bit(15, present);
         self
     }
 
+    /// Disable interrupts when handler for this entry is executing
     pub fn disable_interrupts(&mut self, disable: bool) -> &mut Self {
         self.0.set_bit(8, !disable);
         self
     }
 
+    /// Set privilege level required for calling handler associated to this entry
     pub fn set_privilege_level(&mut self, dpl: u16) -> &mut Self {
         self.0.set_bits(13..15, dpl);
         self
     }
 
+    /// Set stack index in IST (loaded from TSS) to use for handler associated to this entry
     pub fn set_stack_index(&mut self, index: u16) -> &mut Self {
         self.0.set_bits(0..3, index);
         self

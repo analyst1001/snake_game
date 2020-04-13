@@ -1,16 +1,18 @@
 /* Score element displayed on screen */
 
+use crate::vga_buffer::{Color, ColorCode, ScreenChar, Writer, BUFFER_WIDTH};
 use spin::Mutex;
 use x86_64::instructions::interrupts;
-use crate::vga_buffer::{BUFFER_WIDTH, Writer, ColorCode, Color, ScreenChar};
 
 const SCORE_ROW: usize = 0;
-const SCORE_COL: usize = BUFFER_WIDTH - 12;
 const INCREMENT: u16 = 1;
+const SCORE_LABEL: &str = "SCORE: ";
+// Subtract length of SCORE_LABEL (7) + number of digits in max score (5)
+const SCORE_COL: usize = BUFFER_WIDTH - 12;
 
 pub struct Score {
     // Under current VGA text buffer implementation, score will be < 2000
-    value: u16,    
+    value: u16,
 }
 
 impl Score {
@@ -20,15 +22,24 @@ impl Score {
         }
     }
 
+    /// Increment the score value
     pub fn increment(&mut self) {
         self.value += INCREMENT;
     }
 
+    /// Get the current score
+    pub fn get_score(&self) -> u16 {
+        self.value
+    }
+
+    /// Draw the score at top-right corner on the screen
     pub fn draw(&self, screen: &Mutex<Writer>) {
         // Disable interrupts to avoid deadlock
         interrupts::without_interrupts(|| {
             // TODO: Use format strings here
-            screen.lock().write_string_at("Score: ", SCORE_ROW, SCORE_COL);
+            screen
+                .lock()
+                .write_string_at(SCORE_LABEL, SCORE_ROW, SCORE_COL);
             let mut writer = screen.lock();
             let mut value = self.value;
             let mut i = 0;
