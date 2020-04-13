@@ -1,6 +1,6 @@
 # Snake Game
 
-Retro snake game for `x86_64` architecture machines without abstractions provided by OS. This is a fun mini project I implemented while learning about OS development from a series of wonderful [blog posts](https://os.phil-opp.com/) by Philipp Oppermann. Also, this was an attempt to learn more about Rust by implementing my second non-trivial Rust project.
+Retro snake game for `x86_64` architecture machines without abstractions provided by OS. This is a fun mini project (probably may have bugs too) I implemented while learning about OS development from a series of wonderful [blog posts](https://os.phil-opp.com/) by Philipp Oppermann. Also, this was an attempt to learn more about Rust by implementing my second non-trivial Rust project.
 
 ## DEMO!
 ![Snake game GIF demo](https://raw.githubusercontent.com/analyst1001/snake_game/master/snake_game_demo.gif)
