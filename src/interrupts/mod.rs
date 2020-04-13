@@ -1,7 +1,10 @@
 /* Root for interrupts module.
-/
-/  Sets handlers for interrupts, and load IDT to enable interrupt
-/  handling
+//
+// Sets handlers for interrupts, and load IDT to enable interrupt
+// handling
+// Significant portion of code has been used from Philipp Oppermann's blog
+// @ https://os.phil-opp.com/
+// Copyright (c) 2019 Philipp Oppermann
 */
 
 mod gdt;

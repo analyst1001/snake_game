@@ -1,3 +1,7 @@
+;; Code has been used from Philipp Oppermann's blog
+;; @ https://os.phil-opp.com/
+;; Copyright (c) 2019 Philipp Oppermann
+
 global start
 extern long_mode_start
 

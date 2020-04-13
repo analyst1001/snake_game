@@ -1,3 +1,7 @@
+;; Code has been used from Philipp Oppermann's blog
+;; @ https://os.phil-opp.com/
+;; Copyright (c) 2019 Philipp Oppermann
+
 global long_mode_start
 
 STRING_OKAY: equ 0x2f592f412f4b2f4f

@@ -1,3 +1,7 @@
+;; Code has been used from Philipp Oppermann's blog
+;; @ https://os.phil-opp.com/
+;; Copyright (c) 2019 Philipp Oppermann
+
 section .multiboot_header
 header_start:
     dd 0xe85250d6                   ; magic number for multiboot 2

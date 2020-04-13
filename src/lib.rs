@@ -1,4 +1,9 @@
-/* Entry module for Rust code */
+/* Entry module for Rust code
+//
+// Significant portion of code has been used from Philipp Oppermann's blog
+// @ https://os.phil-opp.com/
+// Copyright (c) 2019 Philipp Oppermann
+*/
 
 #![no_std]
 #![feature(const_fn)]

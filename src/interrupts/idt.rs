@@ -1,4 +1,9 @@
-/* Interrupt descriptor table definition */
+/* Interrupt descriptor table definition
+//
+// Significant portion of code has been used from Philipp Oppermann's blog
+// @ https://os.phil-opp.com/
+// Copyright (c) 2019 Philipp Oppermann
+*/
 
 use x86_64::instructions::segmentation;
 use x86_64::structures::gdt::SegmentSelector;

@@ -1,4 +1,9 @@
-/* Module for reading/writing character to screen */
+/* Module for reading/writing character to screen
+//
+// Significant portion of code has been used from Philipp Oppermann's blog
+// @ https://os.phil-opp.com/
+// Copyright (c) 2019 Philipp Oppermann
+*/
 
 use core::fmt;
 use lazy_static::lazy_static;
