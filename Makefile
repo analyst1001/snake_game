@@ -1,6 +1,6 @@
 arch ?= x86_64
-game := build/game-$(arch).bin
-iso := build/game-$(arch).iso
+game := build/snake_game-$(arch).bin
+iso := build/snake_game-$(arch).iso
 target := $(arch)
 game_lib := target/$(target)/debug/libsnake_game.a
 
